@@ -52,6 +52,9 @@ module renaming_map import ariane_pkg::*; #(
     //             on negedge whenever there is a new committing instr, index the dealloc map 
     //             if the entry is valid, then you need to deallocate that pr
 
+    logic [PHYS_NUM_REGS-1:0] free;                             // For each physical register, 0 => allocd; 1 => free
+    logic [PHYS_REG_WIDTH-1:0] curr_lowest_free_pr;             // Should always point to the current lowest free phys reg
+    logic [PHYS_REG_WIDTH-1:0] map [ARCH_NUM_REGS-1:0];         // For each architectural register, store addr of a physical register
 
     // Positive clock edge used for renaming new instructions
     always @(posedge clk_i, negedge rst_ni) begin
@@ -59,10 +62,18 @@ module renaming_map import ariane_pkg::*; #(
         if (~rst_ni) begin
 
             // TODO: ADD LOGIC TO RESET RENAMING STATE
-            // 1. free = {pr1-pr63}
-            //      logic [can_point_to_any_reg_width] current_lowest_free;
-            // 2. map = {all arch regs = 0}
-            // 3. dealloc = {all entries invalid}
+
+            // init all prs to everything free except pr0
+            free = '1;
+            free[0] = 0;
+            curr_lowest_free_pr = 1;
+
+            // init all ars to pr0
+            for (integer i = 0; i < ARCH_NUM_REGS-1; i = i+1) begin
+                map[i] = '0;
+            end
+
+            // 3. dealloc = {all entries invalid} - YET TO IMPLEMENT
 
     
         // New incoming valid instruction to rename   
@@ -79,15 +90,31 @@ module renaming_map import ariane_pkg::*; #(
             issue_q = issue_n;
 
             // TODO: ADD LOGIC TO RENAME OUTGOING INSTRUCTION
-            // The registers of the outgoing instruction issue_q can be set like so:
-            // issue_q.sbe.rs1[PHYS_REG_WIDTH-1:0] = your new rs1 register value;
-            // issue_q.sbe.rs2[PHYS_REG_WIDTH-1:0] = your new rs2 register value;
-            // issue_q.sbe.rd[PHYS_REG_WIDTH-1:0] = your new rd register value;
 
-            // 1. issue_q.sbe.rs1[PHYS_REG_WIDTH-1:0] = map[rs1];
-            // 2. issue_q.sbe.rs2[PHYS_REG_WIDTH-1:0] = map[rs2];
-            // 3. issue_q.sbe.rd[PHYS_REG_WIDTH-1:0]  = current_lowest_free;
-            //                                         then run the function to recalculate current_lowest_free
+            // Rename Source registers using arch->phys reg map
+            issue_q.sbe.rs1[PHYS_REG_WIDTH-1:0] = map[rs1];
+            issue_q.sbe.rs2[PHYS_REG_WIDTH-1:0] = map[rs2];
+
+            // Allocate new phys reg for rd and rename
+            if (rd != 0) begin
+                issue_q.sbe.rd[PHYS_REG_WIDTH-1:0] = curr_lowest_free_pr;
+
+                // Update the map to reflect new ar->pr mapping
+                map[rd] = curr_lowest_free_pr;
+
+
+                free[curr_lowest_free_pr] = 0;
+
+                // then run the function to recalculate current_lowest_free
+                for (integer i = 0; i < PHYS_NUM_REGS; i++) begin
+                    if (free[i]) begin
+                        curr_lowest_free_pr = i;
+                        break;          // Not synthable but xlm should be ok with it
+                    end
+                end
+            end else begin
+                issue_q.sbe.rd[PHYS_REG_WIDTH-1:0] = 0;     // ar0 is always tied to pr0
+            end
 
 
     
