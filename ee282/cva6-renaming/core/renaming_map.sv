@@ -34,6 +34,24 @@ module renaming_map import ariane_pkg::*; #(
     logic [PHYS_REG_WIDTH-1:0] rd;
 
     // TODO: ADD STRUCTURES TO EXECUTE REGISTER RENAMING
+    
+    // Function to calculate the lowest free reg
+    // function automatic [5:0] update_lowest_free(input logic [63:0] free_map);
+    //     // your priority encoder logic here
+    // endfunction
+
+
+    // 1. map: key is the rs number and value is the pr number. Default - map all arch regs to 0 (pr0)
+    // 2. free: an array 64 deep. Each entry is 1 for free and 0 for not free.
+    //         on every cycle that there is EITHER ALLOC or DEALLOC, using comb logic, recalculate the LOWEST free.
+    // 3. dealloc: 
+    //         write to dealloc list:
+    //             on a new instr alloc, if there is a mapping already for rd, then add to dealloc
+    //             key = newly allocated pr for dest reg, value = old address of pr
+    //         consume from dealloc:
+    //             on negedge whenever there is a new committing instr, index the dealloc map 
+    //             if the entry is valid, then you need to deallocate that pr
+
 
     // Positive clock edge used for renaming new instructions
     always @(posedge clk_i, negedge rst_ni) begin
@@ -41,6 +59,11 @@ module renaming_map import ariane_pkg::*; #(
         if (~rst_ni) begin
 
             // TODO: ADD LOGIC TO RESET RENAMING STATE
+            // 1. free = {pr1-pr63}
+            //      logic [can_point_to_any_reg_width] current_lowest_free;
+            // 2. map = {all arch regs = 0}
+            // 3. dealloc = {all entries invalid}
+
     
         // New incoming valid instruction to rename   
         end else if (fetch_entry_ready_i && issue_n.valid) begin
@@ -60,6 +83,13 @@ module renaming_map import ariane_pkg::*; #(
             // issue_q.sbe.rs1[PHYS_REG_WIDTH-1:0] = your new rs1 register value;
             // issue_q.sbe.rs2[PHYS_REG_WIDTH-1:0] = your new rs2 register value;
             // issue_q.sbe.rd[PHYS_REG_WIDTH-1:0] = your new rd register value;
+
+            // 1. issue_q.sbe.rs1[PHYS_REG_WIDTH-1:0] = map[rs1];
+            // 2. issue_q.sbe.rs2[PHYS_REG_WIDTH-1:0] = map[rs2];
+            // 3. issue_q.sbe.rd[PHYS_REG_WIDTH-1:0]  = current_lowest_free;
+            //                                         then run the function to recalculate current_lowest_free
+
+
     
         // If there is no new instruction this clock cycle, simply pass on the
         // incoming instruction without renaming
@@ -77,6 +107,8 @@ module renaming_map import ariane_pkg::*; #(
             if (we_gp_i && waddr_i != 0) begin
         
                 // TODO: IMPLEMENT REGISTER DEALLOCATION LOGIC    
+                // 1. When to dealloc? index dealloc_map[waddr_i].valid == 1 ? Then dealloc the reg: dealloc_map[waddr_i].old_pr
+                // 2. on dealloc, run the function to recalculate current_lowest_free
 
             end
         end
