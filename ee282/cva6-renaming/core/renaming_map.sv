@@ -35,23 +35,6 @@ module renaming_map import ariane_pkg::*; #(
 
     // TODO: ADD STRUCTURES TO EXECUTE REGISTER RENAMING
     
-    // Function to calculate the lowest free reg
-    // function automatic [5:0] update_lowest_free(input logic [63:0] free_map);
-    //     // your priority encoder logic here
-    // endfunction
-
-
-    // 1. map: key is the rs number and value is the pr number. Default - map all arch regs to 0 (pr0)
-    // 2. free: an array 64 deep. Each entry is 1 for free and 0 for not free.
-    //         on every cycle that there is EITHER ALLOC or DEALLOC, using comb logic, recalculate the LOWEST free.
-    // 3. dealloc: 
-    //         write to dealloc list:
-    //             on a new instr alloc, if there is a mapping already for rd, then add to dealloc
-    //             key = newly allocated pr for dest reg, value = old address of pr
-    //         consume from dealloc:
-    //             on negedge whenever there is a new committing instr, index the dealloc map 
-    //             if the entry is valid, then you need to deallocate that pr
-
     logic [PHYS_NUM_REGS-1:0]  free;                            // For each physical register, 0 => allocd; 1 => free
     logic [PHYS_REG_WIDTH-1:0] map [ARCH_NUM_REGS-1:0];         // For each architectural register, store addr of a physical register
     logic [PHYS_REG_WIDTH-1:0] dealloc [PHYS_NUM_REGS-1:0];     // Track for any committing instr, which PR the AR used to point to so we can dealloc it on commit (index using the AR's new PR to uniqly id between diff instrs with the same AR)
