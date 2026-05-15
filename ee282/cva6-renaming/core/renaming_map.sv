@@ -52,10 +52,10 @@ module renaming_map import ariane_pkg::*; #(
     //             on negedge whenever there is a new committing instr, index the dealloc map 
     //             if the entry is valid, then you need to deallocate that pr
 
-    logic [PHYS_NUM_REGS-1:0] free;                             // For each physical register, 0 => allocd; 1 => free
-    logic [PHYS_REG_WIDTH-1:0] curr_lowest_free_pr;             // Should always point to the current lowest free phys reg
+    logic [PHYS_NUM_REGS-1:0]  free;                            // For each physical register, 0 => allocd; 1 => free
     logic [PHYS_REG_WIDTH-1:0] map [ARCH_NUM_REGS-1:0];         // For each architectural register, store addr of a physical register
-    logic [PHYS_REG_WIDTH-1:0] dealloc [PHYS_NUM_REGS-1:0];
+    logic [PHYS_REG_WIDTH-1:0] dealloc [PHYS_NUM_REGS-1:0];     // Track for any committing instr, which PR the AR used to point to so we can dealloc it on commit (index using the AR's new PR to uniqly id between diff instrs with the same AR)
+    logic [PHYS_REG_WIDTH-1:0] curr_lowest_free_pr;
 
 
     // Positive clock edge used for renaming new instructions
@@ -75,7 +75,7 @@ module renaming_map import ariane_pkg::*; #(
                 map[i] = '0;
             end
 
-            // 3. dealloc = {all entries invalid} - YET TO IMPLEMENT
+            // dealloc = {all entries invalid}
             for (integer i = 0; i < PHYS_NUM_REGS-1; i = i+1) begin
                 dealloc[i] = '0;
             end
@@ -142,15 +142,9 @@ module renaming_map import ariane_pkg::*; #(
             if (we_gp_i && waddr_i != 0) begin
         
                 // TODO: IMPLEMENT REGISTER DEALLOCATION LOGIC    
-                // 1. When to dealloc? index dealloc_map[waddr_i].valid == 1 ? Then dealloc the reg: dealloc_map[waddr_i].old_pr
-                // 2. on dealloc, run the function to recalculate current_lowest_free
-                
-                if (dealloc[waddr_i] != 0) begin
+                if (dealloc[waddr_i] != 0) begin        // 0 indicates no explicit dealloc mapping was made (this works because pr0 should never be pointed to)
                     free[dealloc[waddr_i]] = 1;
                     dealloc[waddr_i] = 0; //this is set back to indicate that it is deallocated
-
-                    // then run the function to recalculate current_lowest_free //not required since the loop was move before the setting to the registers
-                    // if (waddr_i < curr_lowest_free_pr) curr_lowest_free_pr = waddr_i;
                 end
 
 
